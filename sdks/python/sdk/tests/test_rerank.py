@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from moss import QueryResultDocumentInfo, SearchResult
 from moss.client.moss_client import MossClient, QueryOptions
 

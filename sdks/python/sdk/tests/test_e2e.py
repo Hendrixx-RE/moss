@@ -16,12 +16,10 @@ from __future__ import annotations
 
 import random
 import time
-from typing import List
 
 import pytest
-from moss_core import DocumentInfo
-
 from moss import GetDocumentsOptions, MossClient
+from moss_core import DocumentInfo
 
 from .constants import (
     TEST_MODEL_ID,
@@ -44,7 +42,7 @@ DOC_TOPICS = [
 ]
 
 
-def generate_docs(count: int, seed: int = 42) -> List[DocumentInfo]:
+def generate_docs(count: int, seed: int = 42) -> list[DocumentInfo]:
     rng = random.Random(seed)
     docs = []
     for i in range(count):
@@ -62,7 +60,7 @@ def generate_docs_with_embeddings(
     count: int,
     dimension: int,
     seed: int = 42,
-) -> List[DocumentInfo]:
+) -> list[DocumentInfo]:
     rng = random.Random(seed)
     docs = []
     for i in range(count):

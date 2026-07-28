@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 import uuid
-from typing import Any, ClassVar, Dict, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, ClassVar
 
 import httpx
 from moss_core import (
@@ -29,13 +31,13 @@ class QueryOptions:
 
     def __init__(
         self,
-        embedding: Optional[Sequence[float]] = None,
-        top_k: Optional[int] = None,
-        alpha: Optional[float] = None,
-        filter: Optional[dict] = None,
+        embedding: Sequence[float] | None = None,
+        top_k: int | None = None,
+        alpha: float | None = None,
+        filter: dict | None = None,
         rerank: bool = False,
-        rerank_top_k: Optional[int] = None,
-        rerank_model: Optional[str] = None,
+        rerank_top_k: int | None = None,
+        rerank_model: str | None = None,
     ):
         if top_k is not None and (not isinstance(top_k, int) or top_k < 1):
             raise ValueError("top_k must be an integer >= 1")
@@ -52,6 +54,8 @@ class QueryOptions:
             not isinstance(rerank_top_k, int) or rerank_top_k < 1
         ):
             raise ValueError("rerank_top_k must be an integer >= 1")
+        if top_k is not None and rerank_top_k is not None and rerank_top_k < top_k:
+            raise ValueError("rerank_top_k must be >= top_k")
 
         self.embedding = embedding
         self.top_k = top_k
@@ -98,7 +102,9 @@ class MossClient:
     """
 
     DEFAULT_MODEL_ID = "moss-minilm"
-    _cross_encoder_cache: ClassVar[Dict[str, Any]] = {}
+    _cross_encoder_cache: ClassVar[dict[str, Any]] = {}
+    _cross_encoder_locks: ClassVar[dict[str, threading.Lock]] = {}
+    _cache_lock: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self, project_id: str, project_key: str) -> None:
         self._project_id = project_id
@@ -117,8 +123,8 @@ class MossClient:
     async def create_index(
         self,
         name: str,
-        docs: List[DocumentInfo],
-        model_id: Optional[str] = None,
+        docs: list[DocumentInfo],
+        model_id: str | None = None,
     ) -> MutationResult:
         """Create a new index and populate it with documents."""
         resolved_model_id = self._resolve_model_id(docs, model_id)
@@ -132,8 +138,8 @@ class MossClient:
     async def add_docs(
         self,
         name: str,
-        docs: List[DocumentInfo],
-        options: Optional[MutationOptions] = None,
+        docs: list[DocumentInfo],
+        options: MutationOptions | None = None,
     ) -> MutationResult:
         """Add or update documents in an index."""
         return await asyncio.to_thread(
@@ -146,7 +152,7 @@ class MossClient:
     async def delete_docs(
         self,
         name: str,
-        doc_ids: List[str],
+        doc_ids: list[str],
     ) -> MutationResult:
         """Delete documents from an index by their IDs."""
         return await asyncio.to_thread(
@@ -165,7 +171,7 @@ class MossClient:
         """Get information about a specific index."""
         return await asyncio.to_thread(self._manage.get_index, name)
 
-    async def list_indexes(self) -> List[IndexInfo]:
+    async def list_indexes(self) -> list[IndexInfo]:
         """List all indexes with their information."""
         return await asyncio.to_thread(self._manage.list_indexes)
 
@@ -176,8 +182,8 @@ class MossClient:
     async def get_docs(
         self,
         name: str,
-        options: Optional[GetDocumentsOptions] = None,
-    ) -> List[DocumentInfo]:
+        options: GetDocumentsOptions | None = None,
+    ) -> list[DocumentInfo]:
         """Retrieve documents from an index."""
         return await asyncio.to_thread(self._manage.get_docs, name, options)
 
@@ -218,7 +224,7 @@ class MossClient:
         self,
         name: str,
         query: str,
-        options: Optional[QueryOptions] = None,
+        options: QueryOptions | None = None,
     ) -> SearchResult:
         """
         Perform a semantic similarity search.
@@ -232,9 +238,11 @@ class MossClient:
         is_loaded = await asyncio.to_thread(self._manager.has_index, name)
 
         rerank = getattr(options, "rerank", False) is True
-        override_top_k = (
-            (getattr(options, "rerank_top_k", None) or 50) if rerank else None
-        )
+        override_top_k = None
+        if rerank:
+            candidate_pool = getattr(options, "rerank_top_k", None) or 50
+            final_top_k = getattr(options, "top_k", None) or 5
+            override_top_k = max(candidate_pool, final_top_k)
 
         if is_loaded:
             result = await self._query_local(name, query, options, override_top_k)
@@ -258,8 +266,8 @@ class MossClient:
         self,
         name: str,
         query: str,
-        options: Optional[QueryOptions],
-        override_top_k: Optional[int] = None,
+        options: QueryOptions | None,
+        override_top_k: int | None = None,
     ) -> SearchResult:
         top_k = (
             override_top_k
@@ -304,8 +312,8 @@ class MossClient:
         self,
         name: str,
         query: str,
-        options: Optional[QueryOptions],
-        override_top_k: Optional[int] = None,
+        options: QueryOptions | None,
+        override_top_k: int | None = None,
     ) -> SearchResult:
         """Fallback: query via the cloud API when the index is not loaded locally."""
         top_k = (
@@ -315,7 +323,7 @@ class MossClient:
         )
         query_embedding = getattr(options, "embedding", None)
 
-        request_body: Dict[str, Any] = {
+        request_body: dict[str, Any] = {
             "query": query,
             "indexName": name,
             "projectId": self._project_id,
@@ -336,7 +344,7 @@ class MossClient:
                     raise Exception(f"HTTP error! status: {response.status_code}")
                 data = response.json()
         except httpx.RequestError as error:
-            raise Exception(f"Cloud query request failed: {str(error)}")
+            raise Exception(f"Cloud query request failed: {error!s}")
 
         return self._dict_to_search_result(data)
 
@@ -359,7 +367,7 @@ class MossClient:
         )
 
     async def _rerank_results(
-        self, query: str, search_result: SearchResult, options: Optional[QueryOptions]
+        self, query: str, search_result: SearchResult, options: QueryOptions | None
     ) -> SearchResult:
         if not search_result.docs:
             return search_result
@@ -378,19 +386,23 @@ class MossClient:
         )
 
         def do_rerank() -> SearchResult:
-            if not hasattr(self.__class__, "_cross_encoder_cache"):
-                self.__class__._cross_encoder_cache = {}
+            with self.__class__._cache_lock:
+                if model_name not in self.__class__._cross_encoder_locks:
+                    self.__class__._cross_encoder_locks[model_name] = threading.Lock()
 
-            if model_name not in self.__class__._cross_encoder_cache:
-                self.__class__._cross_encoder_cache[model_name] = CrossEncoder(
-                    model_name
-                )
+            model_lock = self.__class__._cross_encoder_locks[model_name]
 
-            model = self.__class__._cross_encoder_cache[model_name]
+            with model_lock:
+                if model_name not in self.__class__._cross_encoder_cache:
+                    self.__class__._cross_encoder_cache[model_name] = CrossEncoder(
+                        model_name
+                    )
 
-            local_docs = search_result.docs
-            pairs = [[query, doc.text] for doc in local_docs]
-            scores = model.predict(pairs)
+                model = self.__class__._cross_encoder_cache[model_name]
+
+                local_docs = search_result.docs
+                pairs = [[query, doc.text] for doc in local_docs]
+                scores = model.predict(pairs)
 
             for doc, score in zip(local_docs, scores):
                 doc.score = float(score)
@@ -405,8 +417,8 @@ class MossClient:
 
     def _resolve_model_id(
         self,
-        docs: List[DocumentInfo],
-        model_id: Optional[str],
+        docs: list[DocumentInfo],
+        model_id: str | None,
     ) -> str:
         if model_id is not None:
             return model_id
