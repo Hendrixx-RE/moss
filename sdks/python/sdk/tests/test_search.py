@@ -7,10 +7,9 @@ from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import pytest
-
 from moss import DocumentInfo, MossClient, QueryOptions, SearchResult
 
 from .constants import TEST_PROJECT_ID, TEST_PROJECT_KEY
@@ -25,7 +24,7 @@ EMBEDDING_MODEL = "moss-minilm"
 class ExperimentConfig:
     name: str
     dataset_path: Path
-    alpha: Optional[float]
+    alpha: float | None
     top_k: int = 10
 
 
@@ -36,12 +35,12 @@ class RunStats:
     sdk_version: str
     dataset_name: str
     num_queries: int
-    hit_rate: Optional[float]
-    mrr: Optional[float]
-    ndcg: Optional[float]
-    avg_latency_ms: Optional[float]
-    p95_latency_ms: Optional[float]
-    error_reason: Optional[str] = None
+    hit_rate: float | None
+    mrr: float | None
+    ndcg: float | None
+    avg_latency_ms: float | None
+    p95_latency_ms: float | None
+    error_reason: str | None = None
 
 
 # Dataclass for Caching the dataset to avoid re-loading
@@ -49,16 +48,16 @@ class RunStats:
 class DatasetCache:
     """Cache for dataset data to avoid re-loading across experiments."""
 
-    dataset_path: Optional[Path] = None
-    qrels: Optional[Dict[str, Dict[str, float]]] = None
-    queries: Optional[Dict[str, str]] = None
+    dataset_path: Path | None = None
+    qrels: dict[str, dict[str, float]] | None = None
+    queries: dict[str, str] | None = None
 
 
 # -------------------- Data Loaders --------------------
 
 
 # Loads the corpus from the corpus.jsonl file and combines the title and text into a single string
-def load_corpus(path: Path) -> List[DocumentInfo]:
+def load_corpus(path: Path) -> list[DocumentInfo]:
     """Loads the entire mini-corpus into memory at once."""
     if not path.exists():
         pytest.skip(f"File not found: {path}")
@@ -79,7 +78,7 @@ def load_corpus(path: Path) -> List[DocumentInfo]:
 
 # -------- Loads the qrels from the qrels/test.tsv file --------
 # Example struct of qrels : {"query-id": {"doc-id": score}}
-def load_qrels(path: Path) -> Dict[str, Dict[str, float]]:
+def load_qrels(path: Path) -> dict[str, dict[str, float]]:
     """Loads relevance (Query ID -> Doc ID -> Score)."""
     if not path.exists():
         pytest.skip(f"Qrels file not found: {path}")
@@ -131,7 +130,7 @@ def load_qrels(path: Path) -> Dict[str, Dict[str, float]]:
 
 # -------- Loads the queries from the queries.jsonl --------
 # Example struct of queries : {"_id": "text"}
-def load_queries(path: Path, valid_qids: Set[str]) -> Dict[str, str]:
+def load_queries(path: Path, valid_qids: set[str]) -> dict[str, str]:
     """Loads queries that exist in the Qrels."""
     queries = {}
     with path.open("r", encoding="utf-8") as f:
@@ -156,7 +155,7 @@ def load_queries(path: Path, valid_qids: Set[str]) -> Dict[str, str]:
 # - IDCG@k = DCG of the ideal ranking (documents sorted by relevance descending)
 # - Result: Score between 0.0 (worst) and 1.0 (perfect ranking)
 def calculate_ndcg(
-    retrieved_ids: List[str], true_rels: Dict[str, float], k: int
+    retrieved_ids: list[str], true_rels: dict[str, float], k: int
 ) -> float:
     dcg = 0.0
     idcg = 0.0
@@ -180,8 +179,8 @@ def calculate_ndcg(
 async def run_scenario(
     client: MossClient,
     config: ExperimentConfig,
-    queries: Dict,
-    qrels: Dict,
+    queries: dict,
+    qrels: dict,
     index_name: str,
 ) -> RunStats:
     print(
@@ -354,8 +353,8 @@ async def main():
     unique_dataset_paths = sorted(list({exp.dataset_path for exp in experiments}))
 
     # Map dataset paths to their created index names
-    dataset_to_index_map: Dict[Path, str] = {}
-    failed_datasets: Dict[Path, Dict[str, Any]] = {}
+    dataset_to_index_map: dict[Path, str] = {}
+    failed_datasets: dict[Path, dict[str, Any]] = {}
 
     # Get current version for safe index naming
     try:
@@ -393,7 +392,7 @@ async def main():
         # 4. Create Fresh Index
         print(f"   ✨ Creating fresh index: {index_name}...")
         t0 = time.time()
-        skip_reason: Optional[str] = None
+        skip_reason: str | None = None
         try:
             success = await client.create_index(index_name, docs, EMBEDDING_MODEL)
         except Exception as exc:
