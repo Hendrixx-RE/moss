@@ -12,6 +12,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 
 import pytest
+
 from moss import DocumentInfo, MossClient
 
 from .constants import TEST_MODEL_ID, TEST_PROJECT_ID, TEST_PROJECT_KEY

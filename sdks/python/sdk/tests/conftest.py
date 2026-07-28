@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from dotenv import load_dotenv
+
 from moss import MossClient
 
 # Load .env from project root.
