@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from moss import DocumentInfo, MossClient, QueryOptions, SearchResult
 
 from .constants import TEST_PROJECT_ID, TEST_PROJECT_KEY

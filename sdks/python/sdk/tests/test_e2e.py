@@ -18,8 +18,9 @@ import random
 import time
 
 import pytest
-from moss import GetDocumentsOptions, MossClient
 from moss_core import DocumentInfo
+
+from moss import GetDocumentsOptions, MossClient
 
 from .constants import (
     TEST_MODEL_ID,

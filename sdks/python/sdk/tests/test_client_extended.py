@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+
 from moss import MossClient, __version__
 from moss.client.moss_client import _get_manage_url, _get_query_url
 
