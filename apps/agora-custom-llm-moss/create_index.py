@@ -1,10 +1,9 @@
-"""Build the demo Moss index for the ten-moss voice assistant.
+"""Build the demo Moss index for the Agora custom-llm sample.
 
-Reads documents from ``data/knowledge.jsonl`` and creates the cloud index named
-by ``MOSS_INDEX_NAME``. The running agent opens a Moss session on that index.
+Same 10 FAQs as apps/ten-moss/data/knowledge.jsonl so the bench is shared.
 
-Usage (from ``apps/ten-moss/``):
-    cp .env.example .env    # fill in MOSS_PROJECT_ID / MOSS_PROJECT_KEY / MOSS_INDEX_NAME
+Usage (from apps/agora-custom-llm-moss/):
+    cp server/.env.example server/.env
     python create_index.py
 """
 
@@ -20,7 +19,7 @@ DATA = pathlib.Path(__file__).parent / "data" / "knowledge.jsonl"
 
 
 def load_documents() -> list[DocumentInfo]:
-    """Parse ``data/knowledge.jsonl`` into Moss documents."""
+    """Parse data/knowledge.jsonl into Moss documents."""
     docs: list[DocumentInfo] = []
     for line in DATA.read_text().splitlines():
         line = line.strip()
@@ -34,7 +33,7 @@ def load_documents() -> list[DocumentInfo]:
 
 
 async def main() -> None:
-    """Create the MOSS_INDEX_NAME index from the sample knowledge base."""
+    load_dotenv(pathlib.Path(__file__).parent / "server" / ".env")
     load_dotenv()
     client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
     index_name = os.environ["MOSS_INDEX_NAME"]
