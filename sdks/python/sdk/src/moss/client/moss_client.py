@@ -317,7 +317,6 @@ class MossClient:
                 metrics,
                 on_query=on_query,
             )
-            )
 
     async def _emit_metrics(
         self,
@@ -328,7 +327,7 @@ class MossClient:
         hooks: List[QueryHook] = []
         for src in (self._on_query, options_on_query, on_query):
             if src is not None:
-                if isinstance(src, (Sequence, set)):
+                if isinstance(src, (list, tuple, set)):
                     for h in src:
                         if callable(h) and h not in hooks:
                             hooks.append(h)
