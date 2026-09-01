@@ -15,6 +15,7 @@ First stable release of the `moss` Python SDK (previously published as `inferedg
 - **Hot reload & auto-refresh**: `load_index()` supports `auto_refresh` with configurable polling interval to detect and reload updated indexes
 - **Async bulk index pipeline**: binary upload, server-side build, poll until completion
 - **Index mutations**: `create_index`, `add_docs`, `delete_docs` return `MutationResult` with `job_id`, `index_name`, `doc_count`
+- **Multi-index support** for isolated search spaces
 - **Metrics & tracing hooks**: Opt-in `on_query` callbacks on `MossClient` and `query()` emit `QueryMetrics` with execution latency, document counts, local vs. cloud routing, and error status to user-provided sinks
 - **Python 3.10 to 3.14** supported
 
