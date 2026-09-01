@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from moss import DocumentInfo, MossClient, QueryOptions
 
 try:
-    from moss import QueryMetrics
+    from moss import QueryMetrics  # type: ignore[attr-defined]
 except ImportError:
     from dataclasses import dataclass
 
