@@ -45,7 +45,18 @@ except ImportError:
             return self.error is None
 
         def as_dict(self) -> dict[str, Any]:
-            return {}
+            return {
+                "index_name": self.index_name,
+                "query": self.query,
+                "duration_ms": self.duration_ms,
+                "result_count": self.result_count,
+                "is_local": self.is_local,
+                "top_k": self.top_k,
+                "alpha": self.alpha,
+                "engine_time_ms": self.engine_time_ms,
+                "is_success": self.is_success,
+                "error": str(self.error) if self.error is not None else None,
+            }
 
 
 load_dotenv()
