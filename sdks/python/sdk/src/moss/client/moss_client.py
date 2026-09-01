@@ -313,11 +313,10 @@ class MossClient:
                 engine_time_ms=engine_time_ms,
                 error=error,
             )
-            opt_on_query = getattr(options, "on_query", None)
             await self._emit_metrics(
                 metrics,
                 on_query=on_query,
-                options_on_query=opt_on_query,
+            )
             )
 
     async def _emit_metrics(
