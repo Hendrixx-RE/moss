@@ -18,10 +18,35 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import List
+from typing import Any, List
 
 from dotenv import load_dotenv
-from moss import DocumentInfo, MossClient, QueryMetrics, QueryOptions
+from moss import DocumentInfo, MossClient, QueryOptions
+
+try:
+    from moss import QueryMetrics
+except ImportError:
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class QueryMetrics:  # type: ignore[no-redef]
+        index_name: str
+        query: str
+        duration_ms: float
+        result_count: int
+        is_local: bool
+        top_k: int | None = None
+        alpha: float | None = None
+        engine_time_ms: int | None = None
+        error: Exception | None = None
+
+        @property
+        def is_success(self) -> bool:
+            return self.error is None
+
+        def as_dict(self) -> dict[str, Any]:
+            return {}
+
 
 load_dotenv()
 logging.basicConfig(
